@@ -26,3 +26,11 @@ This mod uses BepInEx and HarmonyX for plugin loading and runtime patching.
 
 - BepInEx: https://github.com/BepInEx/BepInEx
 - HarmonyX: https://github.com/BepInEx/HarmonyX
+
+## Breathing sound effects
+
+The breathing recordings in `audio/` (breath_deep_fast.wav, breath_nose.wav,
+breath_running.wav) come from Audio Library — Sound Effects, a free sound
+effects channel.
+
+- Channel: https://www.youtube.com/@AudioLibrarySoundEffects
