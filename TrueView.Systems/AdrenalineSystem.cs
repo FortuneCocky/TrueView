@@ -104,22 +104,26 @@ internal static class AdrenalineSystem
             _heartSource = cam.GetComponent<AudioSource>();
             if (_heartSource == null)
                 _heartSource = cam.gameObject.AddComponent<AudioSource>();
+            BreathingSystem.RouteToGameMixer(_heartSource);
             _heartSource.spatialBlend = 0f;
             _heartSource.loop = false;
             _heartSource.playOnAwake = false;
             _heartSource.ignoreListenerPause = true;
         }
-        if (_heartClip == null)
+        // Rebuilt if Unity dropped its data on an audio reconfigure.
+        if (!BreathingSystem.ClipValid(_heartClip))
             _heartClip = BuildHeartbeatClip();
 
         _nextBeat -= dt;
         if (_nextBeat <= 0f && !_heartSource.isPlaying)
         {
             _heartSource.clip = _heartClip;
-            _heartSource.volume = Mathf.Clamp01(volume);
+            // A heavy exhale covers the heart a little.
+            _heartSource.volume = Mathf.Clamp01(volume * BreathingSystem.HeartMask);
             _heartSource.Play();
-            // ~70bpm at full calm up to ~140bpm at peak adrenaline
-            float bpm = Mathf.Lerp(70f, 140f, _level);
+            // ~70bpm at full calm up to ~140bpm at peak adrenaline, a touch
+            // quicker on each inhale (as a real heart does).
+            float bpm = Mathf.Lerp(70f, 140f, _level) * BreathingSystem.HeartRateMod;
             _nextBeat = 60f / bpm;
         }
     }

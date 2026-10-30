@@ -15,6 +15,7 @@ internal static class PatchRegistry
 			(ModulePatch)(object)new Patch_LerpCamera(),
 			(ModulePatch)(object)new Patch_SetHeadRotation(),
 			(ModulePatch)(object)new Patch_OnMakingShot(),
+			(ModulePatch)(object)new Patch_ApplyDamageInfo(),
 			(ModulePatch)(object)new Patch_UpdateWeaponVariables(),
 			(ModulePatch)(object)new Patch_CalculateCameraPosition(),
 			(ModulePatch)(object)new Patch_ReloadSpeed(),

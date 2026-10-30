@@ -1,6 +1,7 @@
 using System.Reflection;
 using EFT;
 using EFT.Animations;
+using TrueView.Configuration;
 using TrueView.Core;
 using TrueView.Systems;
 using SPT.Reflection.Patching;
@@ -75,7 +76,7 @@ internal class Patch_CalculateCameraPosition : ModulePatch
             if (!isLeftStance)
             {
                 __instance.HandsContainer.WeaponRoot.localRotation = ProceduralHipSystem.WeaponOffset * __instance.HandsContainer.WeaponRoot.localRotation;
-                ProceduralHipSystem.ApplyWeaponPosOffset(__instance.HandsContainer.WeaponRoot);
+                ProceduralHipSystem.ApplyWeaponPosOffset(__instance.HandsContainer.WeaponRoot, __instance.HandsContainer.CameraTransform);
             }
         }
     }

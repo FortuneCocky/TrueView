@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <radialGradient id="room" cx="50%" cy="46%" r="75%">
+      <stop offset="0" stop-color="#3a4038"/>
+      <stop offset="0.45" stop-color="#1b1f1c"/>
+      <stop offset="1" stop-color="#060707"/>
+    </radialGradient>
+    <radialGradient id="lens" cx="50%" cy="48%" r="72%">
+      <stop offset="0.55" stop-color="#000" stop-opacity="0"/>
+      <stop offset="0.85" stop-color="#000" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.92"/>
+    </radialGradient>
+    <linearGradient id="light" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4e2b8" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#f4e2b8" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#4a5157"/>
+      <stop offset="0.18" stop-color="#22272b"/>
+      <stop offset="1" stop-color="#0c0e10"/>
+    </linearGradient>
+    <linearGradient id="dark" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0" stop-color="#2c3236"/>
+      <stop offset="0.12" stop-color="#15191c"/>
+      <stop offset="1" stop-color="#08090a"/>
+    </linearGradient>
+    <linearGradient id="sleeve" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a3d2f"/>
+      <stop offset="1" stop-color="#121410"/>
+    </linearGradient>
+    <linearGradient id="glove" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3e3d31"/>
+      <stop offset="1" stop-color="#141410"/>
+    </linearGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e8b04a"/>
+      <stop offset="1" stop-color="#e8b04a" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect width="4" height="1" fill="#000" opacity="0.22"/>
+    </pattern>
+    <filter id="blur6"><feGaussianBlur stdDeviation="6"/></filter>
+    <filter id="blur2"><feGaussianBlur stdDeviation="2"/></filter>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7"/>
+      <feColorMatrix values="0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0.09 0"/>
+    </filter>
+
+    <!-- the rifle, first person, from the lower right toward the aim point -->
+    <g id="gun">
+      <!-- muzzle device -->
+      <polygon points="1108,628 1156,636 1158,664 1110,660" fill="#0d0f11"/>
+      <!-- handguard -->
+      <polygon points="1150,626 1565,690 1630,880 1150,676" fill="url(#metal)"/>
+      <!-- rail teeth along the top -->
+      <path d="M1170,632 L1560,696" stroke="#5f686f" stroke-width="3" stroke-dasharray="7 9" opacity="0.8"/>
+      <path d="M1150,628 L1565,694" stroke="#8d969c" stroke-width="2" opacity="0.55"/>
+      <!-- optic -->
+      <polygon points="1440,628 1622,660 1632,706 1446,690" fill="#111416"/>
+      <path d="M1440,628 L1622,660" stroke="#7d868d" stroke-width="2" opacity="0.6"/>
+      <ellipse cx="1444" cy="659" rx="12" ry="30" fill="#0a0c0d" stroke="#3d4448" stroke-width="3"/>
+      <ellipse cx="1444" cy="659" rx="5" ry="14" fill="#7a1e1e" opacity="0.8"/>
+      <!-- receiver and stock towards the shoulder -->
+      <polygon points="1545,680 1820,744 1920,872 1920,1080 1650,1080 1600,870" fill="url(#dark)"/>
+      <path d="M1545,684 L1820,748 L1920,880" fill="none" stroke="#8d969c" stroke-width="2.5" opacity="0.5"/>
+      <!-- magazine -->
+      <path d="M1602,862 L1712,884 Q1700,990 1676,1080 L1566,1080 Q1596,970 1602,862 Z" fill="#101214"/>
+      <path d="M1602,862 L1712,884" stroke="#555e64" stroke-width="2" opacity="0.6"/>
+      <!-- support arm: sleeve from off-screen to the hand -->
+      <polygon points="1318,770 1452,748 1600,1080 1268,1080" fill="url(#sleeve)"/>
+      <path d="M1452,748 L1600,1080" stroke="#5c604a" stroke-width="3" opacity="0.6"/>
+      <polygon points="1300,760 1458,736 1470,790 1316,812" fill="#23241c"/>
+      <!-- support hand wrapped over the handguard -->
+      <path d="M1258,666 C1296,640 1398,646 1428,676 C1452,702 1452,770 1426,796 C1390,828 1300,826 1268,794 C1238,764 1232,692 1258,666 Z" fill="url(#glove)"/>
+      <path d="M1268,668 C1318,650 1390,654 1420,680" fill="none" stroke="#77745c" stroke-width="3" opacity="0.75"/>
+      <path d="M1296,662 C1288,710 1292,764 1310,812 M1334,656 C1326,706 1330,762 1348,818 M1372,658 C1366,708 1370,762 1386,814" fill="none" stroke="#0b0b08" stroke-width="5" opacity="0.65"/>
+      <path d="M1300,664 C1294,700 1296,740 1306,770 M1338,658 C1332,698 1334,738 1344,772" fill="none" stroke="#5a5845" stroke-width="2" opacity="0.5"/>
+    </g>
+  </defs>
+
+  <!-- the room: a corridor in a bodycam lens -->
+  <rect width="1920" height="1080" fill="url(#room)"/>
+  <g opacity="0.55">
+    <polygon points="0,0 760,330 760,700 0,1080" fill="#131614"/>
+    <polygon points="1920,0 1160,330 1160,700 1920,1080" fill="#101311"/>
+    <polygon points="760,330 1160,330 1160,700 760,700" fill="#262b26"/>
+    <polygon points="0,1080 760,700 1160,700 1920,1080" fill="#0b0d0c"/>
+    <polygon points="0,0 760,330 1160,330 1920,0" fill="#0e100f"/>
+    <!-- doorway at the far end -->
+    <rect x="900" y="420" width="120" height="280" fill="#3d3a2e"/>
+    <rect x="900" y="420" width="120" height="280" fill="url(#light)"/>
+    <!-- ceiling lights -->
+    <polygon points="880,348 1040,348 1060,360 860,360" fill="#d8cfae" opacity="0.7"/>
+    <polygon points="820,250 1100,250 1140,272 780,272" fill="#d8cfae" opacity="0.45"/>
+    <polygon points="700,110 1220,110 1300,150 620,150" fill="#d8cfae" opacity="0.25"/>
+  </g>
+  <ellipse cx="960" cy="560" rx="260" ry="200" fill="#f4e2b8" opacity="0.05" filter="url(#blur6)"/>
+
+  <!-- the gun lags behind the view: two ghosts of where it was -->
+  <g filter="url(#blur6)">
+    <use xlink:href="#gun" transform="rotate(-4.5 1760 1000) translate(-40 -26)" opacity="0.10"/>
+    <use xlink:href="#gun" transform="rotate(-2.2 1760 1000) translate(-20 -12)" opacity="0.20"/>
+  </g>
+  <use xlink:href="#gun"/>
+
+  <!-- the deadzone: the view's centre, the free-aim cone and the muzzle's path inside it -->
+  <g transform="translate(960 520)">
+    <circle r="170" fill="none" stroke="#e8b04a" stroke-width="2.5" stroke-dasharray="14 12" opacity="0.65"/>
+    <circle r="170" fill="none" stroke="#e8b04a" stroke-width="10" opacity="0.08"/>
+    <path d="M-14,0 H-4 M4,0 H14 M0,-14 V-4 M0,4 V14" stroke="#e9ecef" stroke-width="2.5" opacity="0.85"/>
+    <path d="M-96,-70 C-40,-130 60,-96 70,-30 C78,24 112,70 150,108" fill="none" stroke="#e8b04a" stroke-width="3" stroke-dasharray="2 10" stroke-linecap="round" opacity="0.75"/>
+    <circle cx="-96" cy="-70" r="4" fill="#e8b04a" opacity="0.2"/>
+    <circle cx="10" cy="-112" r="5" fill="#e8b04a" opacity="0.32"/>
+    <circle cx="70" cy="-30" r="6" fill="#e8b04a" opacity="0.48"/>
+    <circle cx="150" cy="108" r="9" fill="#ffcf6e" filter="url(#glow)"/>
+    <circle cx="150" cy="108" r="20" fill="none" stroke="#ffcf6e" stroke-width="2" opacity="0.6"/>
+  </g>
+
+  <!-- lens, film, scanlines -->
+  <rect width="1920" height="1080" fill="url(#lens)"/>
+  <rect width="1920" height="1080" filter="url(#grain)"/>
+  <rect width="1920" height="1080" fill="url(#scan)"/>
+
+  <!-- bodycam HUD -->
+  <g font-family="Consolas, monospace" fill="#e9ecef">
+    <circle cx="96" cy="86" r="11" fill="#e0342b" filter="url(#glow)"/>
+    <text x="120" y="96" font-size="30" letter-spacing="3">REC</text>
+    <text x="1824" y="96" font-size="28" text-anchor="end" letter-spacing="2" opacity="0.9">2026-10-30  21:47:13</text>
+    <text x="1824" y="134" font-size="22" text-anchor="end" letter-spacing="3" opacity="0.55">UNIT 07 · 30 FPS</text>
+  </g>
+  <g stroke="#e9ecef" stroke-width="3" fill="none" opacity="0.6">
+    <path d="M60,170 V60 H170"/><path d="M1750,60 H1860 V170"/>
+    <path d="M60,910 V1020 H170"/><path d="M1750,1020 H1860 V910"/>
+  </g>
+
+  <!-- title -->
+  <g font-family="Bahnschrift, 'Segoe UI', sans-serif">
+    <text x="118" y="890" font-size="164" font-weight="700" letter-spacing="14" fill="#000" opacity="0.6" filter="url(#blur6)">TRUE VIEW</text>
+    <text x="112" y="884" font-size="164" font-weight="700" letter-spacing="14" fill="#f2f3f4">TRUE VIEW</text>
+    <rect x="116" y="912" width="420" height="5" fill="#e8b04a"/>
+    <text x="116" y="968" font-size="36" letter-spacing="2" fill="#c9cdd1">Your gun has weight. Your view is human.</text>
+  </g>
+  <text x="116" y="1010" font-family="Consolas, monospace" font-size="20" letter-spacing="3" fill="#e8b04a" opacity="0.75">DEADZONE · SWAY · INERTIA · BODYCAM FEEL · SPT 4.1</text>
+</svg>

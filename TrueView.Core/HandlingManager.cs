@@ -173,6 +173,7 @@ internal static class HandlingManager
             TurnInPlaceSystem.Tick(player, dt);
             DynamicFovSystem.Tick(player, dt);
             AdrenalineSystem.Tick(player, dt);
+            BreathingSystem.Tick(player, dt);
             SprintCancelSystem.Tick(player);
             if (HandlingState.HasWeapon)
             {
@@ -182,6 +183,7 @@ internal static class HandlingManager
             ProceduralHipSystem.Tick(player, dt);
             MomentumSystem.Tick(player, dt);
             LeanSystem.Tick(player, dt);
+            TurnRollSystem.Tick(player, dt);
             if (ProceduralHipSystem.ControlsCamera)
                 CameraLagSystem.Reset(player.ProceduralWeaponAnimation);
             else
@@ -211,11 +213,13 @@ internal static class HandlingManager
         ShotSystem.Reset();
         CameraLagSystem.Reset(player?.ProceduralWeaponAnimation);
         LeanSystem.Reset();
+        TurnRollSystem.Reset();
         MomentumSystem.Reset();
         LocomotionGaitSystem.Reset();
         TurnInPlaceSystem.Reset();
         DynamicFovSystem.Reset();
         AdrenalineSystem.Reset();
+        BreathingSystem.Reset();
         InjuryHandlingSystem.Reset();
         MotionTracker.Reset(player);
         FluidMovementSystem.Reset();

@@ -63,7 +63,7 @@ internal class Patch_SetHeadRotation : ModulePatch
 		else
 		{
 			// Apply momentum, camera lag, and lean on top of the detached camera.
-			headRot = LeanSystem.Modify(CameraLagSystem.Modify(MomentumSystem.Modify(baseRot)));
+			headRot = TurnRollSystem.Modify(LeanSystem.Modify(CameraLagSystem.Modify(MomentumSystem.Modify(baseRot))));
 
 			// Apply fluid movement camera bob (walk bob, landing dip, crouch dip).
 			headRot = FluidMovementSystem.Modify(headRot);

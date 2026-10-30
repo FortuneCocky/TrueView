@@ -15,13 +15,9 @@ internal static class HeadAttachSystem
 {
     private const float MaxPositionOffset = 0.12f;
     private const float MaxRotationDegrees = 6f;
-    private const float BaselineSpeed = 3f;
-    private const float FadeSpeed = 10f;
+    private const float MaxRollDegrees = 24f;
 
     private static float _blend = 1f;
-
-    private static Vector3 _basePos;
-    private static Quaternion _baseRot = Quaternion.identity;
     private static bool _initialized;
 
     // Offset applied last frame, so it is never stacked on top of itself if the
@@ -32,7 +28,6 @@ internal static class HeadAttachSystem
     private static Vector3 _shotShakeVelocity;
     private static Vector3 _posKick;
     private static Vector3 _posKickVelocity;
-    private static Vector3 _stabilizedHeadEuler;
     private static Vector3 _directionLag;
     private static Vector3 _weaponCoupling;
     private static Vector3 _injuryDrift;
@@ -77,6 +72,34 @@ internal static class HeadAttachSystem
         _shotShake = Vector3.ClampMagnitude(_shotShake, 6f);
         _shotShakeVelocity += euler * 7f;
         _shotShakeVelocity = Vector3.ClampMagnitude(_shotShakeVelocity, 35f);
+    }
+
+    /// <summary>
+    /// The local player was hit: the head is knocked the way the round travelled (pitched back
+    /// from the front, turned and tilted from the side), harder for the head, a stomach hit
+    /// doubles him forward, a leg hit dips the view. Scaled by damage and "Hit reaction strength".
+    /// </summary>
+    public static void OnHitTaken(EBodyPart part, Vector3 direction, float damage, Player player)
+    {
+        if (HandlingConfig.HitReactionEnabled?.Value != true)
+            return;
+        float s = (HandlingConfig.HitReactionStrength?.Value ?? 0.8f) * Mathf.Clamp(0.35f + damage / 40f, 0.35f, 1.5f);
+        if (s <= 0f)
+            return;
+        Transform view = Camera.main != null ? Camera.main.transform : player.Transform.Original;
+        Vector3 local = direction.sqrMagnitude > 1e-4f ? view.InverseTransformDirection(direction.normalized) : Vector3.forward;
+        Vector3 euler = new(local.z * 2.2f, local.x * 1.6f, -local.x * 2.4f); // x>0 looks down: hit from the front pitches him back
+        float push = 1f;
+        switch (part)
+        {
+            case EBodyPart.Head: euler *= 1.7f; push = 1.5f; break;
+            case EBodyPart.Stomach: euler.x = Mathf.Abs(euler.x) * 0.6f + 1.4f; break;
+            case EBodyPart.LeftArm: case EBodyPart.RightArm: euler = new Vector3(euler.x * 0.3f, euler.y * 0.8f, euler.z * 0.8f); push = 0.5f; break;
+            case EBodyPart.LeftLeg: case EBodyPart.RightLeg: euler = new Vector3(1.6f, euler.y * 0.3f, euler.z * 0.6f); push = 0.6f; break;
+        }
+        AddHitImpulse(euler * s);
+        _posKickVelocity += (local * 0.03f + (part is EBodyPart.LeftLeg or EBodyPart.RightLeg ? Vector3.down * 0.03f : Vector3.zero)) * push * s;
+        _posKickVelocity = Vector3.ClampMagnitude(_posKickVelocity, 0.09f);
     }
 
     public static Vector3 ApplyShotShake(Vector3 headRotation)
@@ -124,6 +147,26 @@ internal static class HeadAttachSystem
         return headRotation + _shotShake + _directionLag + _weaponCoupling + _injuryDrift;
     }
 
+    // --- Synthesized body-camera state ---
+    private static float _stridePhase;
+    private static int _stepSide;
+    private static Vector3 _stepOffset;
+    private static Vector3 _stepVel;
+    private static Vector3 _stepEuler;
+    private static Vector3 _stepEulerVel;
+    private static float _exertion;
+    private static Vector3 _adsSettle;
+    private static bool _wasAiming;
+    private static int _lastApplyFrame = -1;
+
+    /// <summary>Deltas applied to the camera this frame — the weapon patch
+    /// reads these to keep the gun coupled to head motion instead of
+    /// lagging it (the source of visible gun-vs-view jitter).</summary>
+    internal static Vector3 LastPosDelta;
+    internal static Vector3 LastEulerDelta;
+    private static Vector3 _posDeltaSm;
+    private static Vector3 _eulerSm;
+
     public static void Apply(Player player, Transform camera)
     {
         if (!HandlingConfig.HeadAttachEnabled.Value || player == null || camera == null || camera.parent == null)
@@ -131,52 +174,88 @@ internal static class HeadAttachSystem
             _initialized = false;
             return;
         }
+        // One write per frame — if anything calls Apply twice in a frame the
+        // delta would stack and read as micro-jitter.
+        if (_lastApplyFrame == Time.frameCount)
+        {
+            return;
+        }
 
-        Transform head = player.PlayerBones?.Head?.Original;
         Transform root = player.Transform?.Original;
-        if (head == null || root == null)
+        if (root == null)
         {
             _initialized = false;
             return;
         }
 
         float dt = Mathf.Min(Time.deltaTime, 1f / 30f);
-        Vector3 localPos = root.InverseTransformPoint(head.position);
-        Quaternion localRot = Quaternion.Inverse(root.rotation) * head.rotation;
 
         if (!_initialized)
         {
-            _basePos = localPos;
-            _baseRot = localRot;
             _lastAppliedDelta = Vector3.zero;
             _lastResultPos = camera.localPosition;
+            _wasAiming = HandlingState.IsAiming;
             _initialized = true;
             return;
         }
 
-        float k = 1f - Mathf.Exp(-BaselineSpeed * dt);
-        _basePos = Vector3.Lerp(_basePos, localPos, k);
-        _baseRot = Quaternion.Slerp(_baseRot, localRot, k);
+        // --- Exertion: body stamina drives breathing depth/rate and step weight ---
+        float exertionTarget = 1f - HandlingState.Stamina01;
+        // Fast rise while working, slow recovery after sprint (~20s settle).
+        float exertionRate = exertionTarget > _exertion ? 1.2f : 0.06f;
+        _exertion = Mathf.Lerp(_exertion, exertionTarget, 1f - Mathf.Exp(-exertionRate * 8f * dt));
+        float exertionGain = Mathf.Clamp01(_exertion * (HandlingConfig.HeadExertion?.Value ?? 1f));
 
-        bool suppressed = HandlingState.IsAiming || Mathf.Abs(MotionTracker.Lean) > 0.05f;
-        _blend = Mathf.MoveTowards(_blend, suppressed ? 0f : 1f, FadeSpeed * dt);
-
-        float posScale = HandlingConfig.HeadAttachPosition.Value * _blend;
-        float rotScale = HandlingConfig.HeadAttachRotation.Value * _blend;
-        Vector3 basePosition = camera.localPosition;
-        if ((basePosition - _lastResultPos).sqrMagnitude < 1e-10f)
-            basePosition -= _lastAppliedDelta;
-
-        Vector3 positionDelta = Vector3.zero;
-        if (posScale > 0.001f)
+        // --- Footstep jolts: stride phase advances with horizontal speed ---
+        Vector3 vel = player.Velocity;
+        float speed = new Vector2(vel.x, vel.z).magnitude;
+        float speedNorm = Mathf.Clamp01(speed / 4.5f);
+        float stepGain = (HandlingConfig.HeadStepImpact?.Value ?? 0f);
+        float aimScale = HandlingState.IsAiming ? 0.45f : 1f;
+        _blend = Mathf.MoveTowards(_blend, speed > 0.2f && stepGain > 0.001f ? 1f : 0f, 6f * dt);
+        _stridePhase += dt * Mathf.Lerp(1.7f, 3.4f, speedNorm) * _blend;
+        int stepIndex = (int)_stridePhase;
+        if (stepIndex != _stepSide && _blend > 0.05f)
         {
-            Vector3 delta = localPos - _basePos;
-            delta.y = 0f;
-            Vector3 worldDelta = Vector3.ClampMagnitude(root.TransformVector(delta) * posScale, MaxPositionOffset * posScale);
-            positionDelta = camera.parent.InverseTransformVector(worldDelta);
+            _stepSide = stepIndex;
+            // Left/right alternating strike: pitch dip + lateral roll, heavier when tired.
+            float w = Mathf.Lerp(0.7f, 1.3f, exertionGain);
+            float jolt = stepGain * _blend * aimScale * w * Mathf.Lerp(0.6f, 1f, speedNorm);
+            _stepVel += new Vector3(((stepIndex & 1) == 0 ? -0.0025f : 0.0025f) * jolt, -0.006f * jolt, 0f);
+            _stepEulerVel += new Vector3(-1.1f * jolt, 0f, ((stepIndex & 1) == 0 ? -0.6f : 0.6f) * jolt);
         }
+        // Quick thud spring — near-critical so each step reads as one dip,
+        // not a ring that feeds back into weapon motion.
+        _stepVel += (-_stepOffset * 260f - _stepVel * 30f) * dt;
+        _stepOffset += _stepVel * dt;
+        _stepEulerVel += (-_stepEuler * 220f - _stepEulerVel * 28f) * dt;
+        _stepEuler += _stepEulerVel * dt;
 
-        // Muzzle jolt spring — once per frame, camera-local space.
+        // --- Breathing: chest rise/fall, deeper and faster when exerted or
+        // under adrenaline. The cycle comes from BreathingSystem so the
+        // motion lines up with the breathing you hear.
+        float breathGain = HandlingConfig.HeadBreath?.Value ?? 0f;
+        float breathAmp = breathGain * Mathf.Lerp(0.35f, 1.4f, Mathf.Max(exertionGain, BreathingSystem.Depth));
+        float bIn = Mathf.Sin(BreathingSystem.Phase);
+        float bOut = 1f - Mathf.Cos(BreathingSystem.Phase);
+        Vector3 breathPos = new(0f, bOut * 0.0035f * breathAmp, bOut * 0.0015f * breathAmp);
+        float breathPitch = bIn * 0.28f * breathAmp;
+        float breathRoll = (Mathf.PerlinNoise(Time.time * 0.13f, 7.7f) - 0.5f) * 0.35f * breathAmp;
+
+        // --- ADS settle: small sight-picture drift converging over ~1s ---
+        bool aiming = HandlingState.IsAiming;
+        float settleGain = HandlingConfig.HeadAdsSettle?.Value ?? 0f;
+        if (aiming && !_wasAiming)
+        {
+            _adsSettle = new Vector3(
+                (Mathf.PerlinNoise(Time.time * 3.1f, 31.7f) - 0.5f) * 2.4f,
+                (Mathf.PerlinNoise(47.3f, Time.time * 3.7f) - 0.5f) * 1.6f,
+                0f) * settleGain;
+        }
+        _wasAiming = aiming;
+        _adsSettle = Vector3.Lerp(_adsSettle, Vector3.zero, 1f - Mathf.Exp(-dt / 1.1f));
+
+        // --- Muzzle jolt spring (camera-local position kick from firing) ---
         if (_lastPosKickFrame != Time.frameCount)
         {
             _lastPosKickFrame = Time.frameCount;
@@ -189,36 +268,41 @@ internal static class HeadAttachSystem
                 _posKickVelocity = Vector3.zero;
             }
         }
-        positionDelta += _posKick;
 
+        Vector3 basePosition = camera.localPosition;
+        if ((basePosition - _lastResultPos).sqrMagnitude < 1e-10f)
+            basePosition -= _lastAppliedDelta;
+
+        Vector3 motionDelta = _stepOffset + breathPos + _posKick;
+        Vector3 euler = _stepEuler + new Vector3(breathPitch, 0f, breathRoll) + _adsSettle;
+        euler.x = Mathf.Clamp(euler.x, -MaxRotationDegrees, MaxRotationDegrees);
+        euler.y = Mathf.Clamp(euler.y, -MaxRotationDegrees, MaxRotationDegrees);
+        euler.z = Mathf.Clamp(euler.z, -MaxRollDegrees, MaxRollDegrees);
+
+        // Low-pass the final deltas: the weapon's lazy spring chases a
+        // camera-relative target, so raw frame-to-frame impulse noise reads
+        // as gun jitter. ~18Hz smoothing keeps the thud, kills the buzz.
+        float sm = 1f - Mathf.Exp(-14f * dt);
+        _posDeltaSm = Vector3.Lerp(_posDeltaSm, motionDelta, sm);
+        _eulerSm = Vector3.Lerp(_eulerSm, euler, sm);
+        euler = _eulerSm;
+
+        Vector3 positionDelta = Vector3.ClampMagnitude(_posDeltaSm, MaxPositionOffset);
         _lastAppliedDelta = positionDelta;
         camera.localPosition = basePosition + positionDelta;
         _lastResultPos = camera.localPosition;
 
-        if (rotScale > 0.001f)
-        {
-            Vector3 euler = (localRot * Quaternion.Inverse(_baseRot)).eulerAngles;
-            euler.x = Mathf.DeltaAngle(0f, euler.x);
-            euler.y = 0f;
-            euler.z = Mathf.DeltaAngle(0f, euler.z);
-            _stabilizedHeadEuler = Vector3.Lerp(_stabilizedHeadEuler, euler, 1f - Mathf.Exp(-6f * dt));
-            float stabilization = HandlingConfig.HeadEyeStabilization.Value * Mathf.Clamp01(1f - InjuryHandlingSystem.HeadPenalty * 0.7f);
-            euler = Vector3.Lerp(euler, _stabilizedHeadEuler, stabilization);
-            float max = MaxRotationDegrees * rotScale;
-            euler.x = Mathf.Clamp(euler.x * rotScale, -max, max);
-            euler.z = Mathf.Clamp(euler.z * rotScale, -max, max);
+        LastPosDelta = _posDeltaSm;
+        LastEulerDelta = euler;
+        if (euler.sqrMagnitude > 0.000001f)
+            camera.localRotation = Quaternion.Euler(euler) * camera.localRotation;
 
-            Quaternion worldRot = root.rotation * Quaternion.Euler(euler) * Quaternion.Inverse(root.rotation);
-            Quaternion localDelta = Quaternion.Inverse(camera.parent.rotation) * worldRot * camera.parent.rotation;
-            camera.localRotation = localDelta * camera.localRotation;
-        }
+        _lastApplyFrame = Time.frameCount;
     }
 
     public static void Reset()
     {
         _initialized = false;
-        _basePos = Vector3.zero;
-        _baseRot = Quaternion.identity;
         _lastAppliedDelta = Vector3.zero;
         _lastResultPos = Vector3.zero;
         _shotShake = Vector3.zero;
@@ -226,7 +310,20 @@ internal static class HeadAttachSystem
         _posKick = Vector3.zero;
         _posKickVelocity = Vector3.zero;
         _lastPosKickFrame = -1;
-        _stabilizedHeadEuler = Vector3.zero;
+        _stridePhase = 0f;
+        _stepSide = 0;
+        _stepOffset = Vector3.zero;
+        _stepVel = Vector3.zero;
+        _stepEuler = Vector3.zero;
+        _stepEulerVel = Vector3.zero;
+        _exertion = 0f;
+        _adsSettle = Vector3.zero;
+        _wasAiming = false;
+        _lastApplyFrame = -1;
+        _posDeltaSm = Vector3.zero;
+        _eulerSm = Vector3.zero;
+        LastPosDelta = Vector3.zero;
+        LastEulerDelta = Vector3.zero;
         _directionLag = Vector3.zero;
         _weaponCoupling = Vector3.zero;
         _injuryDrift = Vector3.zero;
